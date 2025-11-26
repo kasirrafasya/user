@@ -222,14 +222,183 @@
     </div>
 </div>
 
-<!-- Firebase + script kamu tetap sama -->
 <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
+    <script>
+        const firebaseConfig = {
+    apiKey: "AIzaSyBN7iZX6CNHMEENgsFoS8VHhguRreE-xRs",
+    authDomain: "kasirku-1d33c.firebaseapp.com",
+    databaseURL: "https://kasirku-1d33c-default-rtdb.firebaseio.com/",
+    projectId: "kasirku-1d33c",
+    storageBucket: "kasirku-1d33c.appspot.com",
+    messagingSenderId: "440756410882",
+    appId: "1:440756410882:web:674a56658a0f5241d0651b",
+    measurementId: "G-D7C4321WB4"
+};
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const transaksiRef = database.ref('Transaksi');
+        const pengeluaranRef = database.ref('Pengeluaran');
 
-<!-- PASTE JavaScript Firebase kamu di sini (tidak diubah) -->
-<script>
-/* === Script asli kamu, tidak ada perubahan di logika === */
-</script>
+        const pemasukanBody = document.getElementById('pemasukan-body');
+        const pengeluaranBody = document.getElementById('pengeluaran-body');
+        const dateFilterElement = document.getElementById('date-filter');
+        const totalPemasukanElement = document.getElementById('total-pemasukan');
+        const totalPengeluaranElement = document.getElementById('total-pengeluaran');
+        const grandTotalElement = document.getElementById('grand-total');
+        const alertLocalStorage = document.getElementById('alert-local-storage');
+        const deskripsiCatatanEl = document.getElementById('deskripsi-catatan');
+        const cashierIdFilterElement = document.getElementById('cashier-id-filter');
+
+        let pemasukanData = [];
+        let pengeluaranData = [];
+
+        function formatRupiah(number) {
+            if (number === undefined || number === null || isNaN(number)) return 'Rp 0';
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits:0 }).format(number);
+        }
+
+        function formatTimeOnly(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+        }
+
+        function formatFullDate(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' });
+        }
+
+        function getTodayDateString() {
+            return new Date().toISOString().substring(0,10);
+        }
+
+        function resetFilter() {
+            dateFilterElement.value = '';
+            cashierIdFilterElement.value = '';
+            applyFilter();
+        }
+
+        function getSelectedDate() { return dateFilterElement.value; }
+        function getSelectedCashierId() { return cashierIdFilterElement.value.trim().toLowerCase(); }
+
+        function processData(snapshot, filterDate, filterCashierId, type) {
+            const items = [];
+            snapshot.forEach(child=>{
+                const data = child.val();
+                const item = {};
+                if(type==='Transaksi'){
+                    item.waktu = data.timestamp;
+                    item.id_kasir = data.id_kasir||'NO ID';
+                    item.deskripsi = data.catatan_transaksi && data.catatan_transaksi.trim()!==''?data.catatan_transaksi:`Trx #${child.key}`;
+                    item.jumlah = data.total_bayar||0;
+                } else {
+                    item.waktu = data.timestamp;
+                    item.id_kasir = data.id_kasir||'N/A';
+                    item.deskripsi = data.deskripsi;
+                    item.jumlah = data.jumlah||0;
+                }
+                const itemDate = item.waktu?new Date(item.waktu).toISOString().substring(0,10):'';
+                const dateMatches = (filterDate==='' || itemDate===filterDate);
+                const cashierMatches = (filterCashierId===''||(type==='Transaksi'&&item.id_kasir.toLowerCase().includes(filterCashierId)));
+                if(dateMatches && cashierMatches) items.push(item);
+            });
+            return items.reverse();
+        }
+
+        function displayPemasukan(data) {
+            pemasukanBody.innerHTML='';
+            if(data.length===0){
+                pemasukanBody.innerHTML='<tr><td colspan="5" style="text-align:center; color:#6c757d;">Belum ada pemasukan yang tercatat.</td></tr>';
+            } else {
+                let total=0;
+                data.forEach(trx=>{
+                    total+=trx.jumlah;
+                    const row=document.createElement('tr');
+                    row.innerHTML=`<td>${formatTimeOnly(trx.waktu)}</td>
+                                   <td>${formatFullDate(trx.waktu)}</td>
+                                   <td>${trx.id_kasir}</td>
+                                   <td>${trx.deskripsi}</td>
+                                   <td style="text-align:right;">${formatRupiah(trx.jumlah)}</td>`;
+                    pemasukanBody.appendChild(row);
+                });
+            }
+        }
+
+        function displayPengeluaran(data) {
+            pengeluaranBody.innerHTML='';
+            if(data.length===0){
+                pengeluaranBody.innerHTML='<tr><td colspan="5" style="text-align:center; color:#6c757d;">Belum ada pengeluaran yang tercatat.</td></tr>';
+            } else {
+                let total=0;
+                data.forEach(exp=>{
+                    total+=exp.jumlah;
+                    const row=document.createElement('tr');
+                    row.innerHTML=`<td>${formatTimeOnly(exp.waktu)}</td>
+                                   <td>${formatFullDate(exp.waktu)}</td>
+                                   <td>${exp.id_kasir}</td>
+                                   <td>${exp.deskripsi}</td>
+                                   <td style="text-align:right;">${formatRupiah(exp.jumlah)}</td>`;
+                    pengeluaranBody.appendChild(row);
+                });
+            }
+        }
+
+        function updateGrandTotal() {
+            const totalIncome = pemasukanData.reduce((sum, item) => sum + (item.jumlah||0), 0);
+            const totalExpense = pengeluaranData.reduce((sum, item) => sum + (item.jumlah||0), 0);
+            const saldoBersih = totalIncome - totalExpense;
+            
+            totalPemasukanElement.textContent = `Total Pemasukan: ${formatRupiah(totalIncome)}`;
+            totalPengeluaranElement.textContent = `Total Pengeluaran: ${formatRupiah(totalExpense)}`;
+            grandTotalElement.textContent = `Saldo Bersih: ${formatRupiah(saldoBersih)}`;
+            grandTotalElement.style.color = saldoBersih >= 0 ? 'var(--secondary-color)' : 'var(--danger-color)';
+        }
+
+        function applyFilter() {
+            // Data sudah tersimpan di pemasukanData & pengeluaranData, tinggal filter ulang
+            transaksiRef.once('value', snapshot => {
+                pemasukanData = processData(snapshot, getSelectedDate(), getSelectedCashierId(), 'Transaksi');
+                displayPemasukan(pemasukanData);
+                updateGrandTotal();
+            });
+            pengeluaranRef.once('value', snapshot => {
+                pengeluaranData = processData(snapshot, getSelectedDate(), getSelectedCashierId(), 'Pengeluaran');
+                displayPengeluaran(pengeluaranData);
+                updateGrandTotal();
+            });
+        }
+
+        function checkLocalStorageForTransaction() {
+            const transactionDataJson = localStorage.getItem('transaksi_berhasil');
+            const deskripsiEkspor = localStorage.getItem('deskripsi_ekspor_catatan');
+            if(transactionDataJson){
+                alertLocalStorage.style.display='block';
+                deskripsiCatatanEl.textContent = deskripsiEkspor||"Tidak ada catatan spesifik.";
+                localStorage.removeItem('transaksi_berhasil');
+                localStorage.removeItem('deskripsi_ekspor_catatan');
+            }
+        }
+
+        function setupRealtimeListeners() {
+            transaksiRef.on('value', snapshot => {
+                pemasukanData = processData(snapshot, getSelectedDate(), getSelectedCashierId(), 'Transaksi');
+                displayPemasukan(pemasukanData);
+                updateGrandTotal();
+            });
+
+            pengeluaranRef.on('value', snapshot => {
+                pengeluaranData = processData(snapshot, getSelectedDate(), getSelectedCashierId(), 'Pengeluaran');
+                displayPengeluaran(pengeluaranData);
+                updateGrandTotal();
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded',()=>{
+            dateFilterElement.value = getTodayDateString();
+            setupRealtimeListeners();
+            checkLocalStorageForTransaction();
+        });
+    </script>
 
 </body>
 </html>
