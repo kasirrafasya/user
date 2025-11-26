@@ -37,6 +37,7 @@ document.addEventListener("keydown", e => {
             background-color: var(--background-light);
             color: var(--text-dark);
             padding: 20px;
+             -webkit-tap-highlight-color: transparent;
         }
         
         /* --- TATA LETAK UTAMA --- */
@@ -371,7 +372,7 @@ document.addEventListener("keydown", e => {
         <div class="panel summary-panel">
 
             <div class="cart-section">
-                <h3>🛍️ Daftar Belanja</h3>
+                <h3>Daftar Belanja</h3>
                 <table id="cart-table">
                     <thead>
                         <tr>
@@ -388,14 +389,14 @@ document.addEventListener("keydown", e => {
                 </table>
                 
                 <div class="panel" style="margin-top: 25px; padding: 15px; border: 1px solid #ddd;">
-                    <h3>🗒️ Catatan Transaksi (Deskripsi Ekspor)</h3>
+                    <h3>Catatan Transaksi (Deskripsi Ekspor)</h3>
                     <textarea id="catatan-transaksi" rows="4" placeholder="Masukkan catatan tambahan, misalnya: Permintaan pelanggan, nama pembeli, dll."></textarea>
                 </div>
             </div>
 
             <div class="summary-payment-group">
                 <div class="summary-section">
-                    <h2>💰 Ringkasan Pembayaran</h2>
+                    <h2>Ringkasan Pembayaran</h2>
                     <div class="summary-row">
                         <span>Subtotal (Harga Normal)</span>
                         <span id="subtotal-normal">Rp 0</span>
@@ -419,8 +420,8 @@ document.addEventListener("keydown", e => {
                         <span id="change-amount">Rp 0</span>
                     </div>
                     
-                    <button type="submit" class="btn-finalize" disabled>💵 Finalisasi Transaksi</button>
-                    <a href="history.html" class="btn-history">⏳ Lihat History Transaksi</a>
+                    <button type="submit" class="btn-finalize" disabled>Finalisasi Transaksi</button>
+                    <a href="history.html" class="btn-history">Lihat History Transaksi</a>
                 </form>
             </div>
         </div>
