@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ringkasan Keuangan Harian</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
+
+<script>
+document.addEventListener("contextmenu", e => e.preventDefault());
+document.addEventListener("selectstart", e => e.preventDefault());
+document.addEventListener("keydown", e => {
+  if (
+    e.key === "F12" ||
+    (e.ctrlKey && ["u","U","c","C","x","X","s","S","a","A"].includes(e.key)) ||
+    (e.ctrlKey && e.shiftKey && ["I","i","J","j"].includes(e.key))
+  ) e.preventDefault();
+});
+</script>
+    <style>
+        :root {
+            --primary-color: #007BFF; 
+            --secondary-color: #28a745; 
+            --danger-color: #dc3545; 
+            --background-light: #f4f7f6;
+            --text-dark: #343a40;
+            --border-radius: 8px;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-light);
+            color: var(--text-dark);
+            padding: 15px;
+            margin: 0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            background-color: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+        }
+
+        h2 {
+            font-size: 1.6em;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        
+        .filter-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        input[type="date"], input[type="text"] {
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: var(--border-radius);
+            font-family: 'Poppins', sans-serif;
+            flex: 1 1 200px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: 0.2s;
+            flex: 1 1 100px;
+        }
+        .btn-primary { background-color: var(--primary-color); color: white; }
+        .btn-primary:hover { background-color: #0056b3; }
+        .btn-warning { background-color: #ffc107; color: var(--text-dark); }
+        .btn-warning:hover { background-color: #ffaa00; }
+        .btn-back { 
+            background-color: #6c757d; 
+            color: white; 
+            margin-bottom: 15px; 
+            display: inline-block;
+            padding: 10px 20px; 
+            text-decoration: none;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            table-layout: fixed;
+            word-wrap: break-word;
+        }
+        .data-table th, .data-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 0.95em;
+        }
+        .data-table th {
+            background-color: #f8f9fa;
+            font-weight: 700;
+        }
+
+        .summary-row {
+            font-weight: 700;
+            background-color: #e9f5ff; 
+            text-align: right;
+            padding: 10px;
+        }
+        .expense-row {
+            font-weight: 700;
+            background-color: #fff0f0; 
+            color: var(--danger-color);
+            text-align: right;
+            padding: 10px;
+        }
+        .grand-total {
+            font-size: 1.4em;
+            font-weight: 700;
+            padding: 12px 0;
+            text-align: right;
+        }
+
+        .local-storage-alert {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            padding: 12px;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 768px) {
+            .filter-controls {
+                flex-direction: column;
+            }
+            .data-table th, .data-table td {
+                font-size: 0.85em;
+                padding: 8px;
+            }
+            h2 { font-size: 1.4em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="history.html" class="btn-back">Kembali ke Riwayat</a> 
+        
+        <div id="alert-local-storage" class="local-storage-alert" style="display:none;">
+            Data transaksi terakhir (dari Kasir) berhasil dimuat. Deskripsi Ekspor: <span id="deskripsi-catatan"></span>
+        </div>
+        
+        <div class="panel">
+            <h2>📊 Ringkasan Keuangan Harian</h2>
+            
+            <div class="filter-controls">
+                <input type="date" id="date-filter">
+                <input type="text" id="cashier-id-filter" placeholder="ID Kasir (Opsional)">
+                <button class="btn btn-primary" onclick="applyFilter()">Terapkan Filter</button>
+                <button class="btn btn-warning" onclick="resetFilter()">Reset Filter</button>
+            </div>
+            
+            <h2 style="color: var(--secondary-color);">💰 Pemasukan (Penjualan)</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Waktu</th>
+                        <th>Tanggal</th>
+                        <th>ID Kasir</th>
+                        <th>Deskripsi Transaksi</th>
+                        <th style="text-align:right;">Total Bayar (Rp)</th>
+                    </tr>
+                </thead>
+                <tbody id="pemasukan-body">
+                    <tr><td colspan="5" style="text-align:center;">Memuat data pemasukan...</td></tr>
+                </tbody>
+            </table>
+            <div id="total-pemasukan" class="summary-row">Total Pemasukan: Rp 0</div>
+
+            <h2 style="color: var(--danger-color);">💸 Pengeluaran</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Waktu</th>
+                        <th>Tanggal</th>
+                        <th>ID Kasir</th>
+                        <th>Deskripsi Pengeluaran</th>
+                        <th style="text-align:right;">Jumlah (Rp)</th>
+                    </tr>
+                </thead>
+                <tbody id="pengeluaran-body">
+                    <tr><td colspan="5" style="text-align:center;">Memuat data pengeluaran...</td></tr>
+                </tbody>
+            </table>
+            <div id="total-pengeluaran" class="expense-row">Total Pengeluaran: Rp 0</div>
+
+            <div id="grand-total" class="grand-total">Saldo Bersih: Rp 0</div>
+            
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
+    <script>
+        const firebaseConfig = {
+    apiKey: "AIzaSyBN7iZX6CNHMEENgsFoS8VHhguRreE-xRs",
+    authDomain: "kasirku-1d33c.firebaseapp.com",
+    databaseURL: "https://kasirku-1d33c-default-rtdb.firebaseio.com/",
+    projectId: "kasirku-1d33c",
+    storageBucket: "kasirku-1d33c.appspot.com",
+    messagingSenderId: "440756410882",
+    appId: "1:440756410882:web:674a56658a0f5241d0651b",
+    measurementId: "G-D7C4321WB4"
+};
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const transaksiRef = database.ref('Transaksi');
+        const pengeluaranRef = database.ref('Pengeluaran');
+
+        const pemasukanBody = document.getElementById('pemasukan-body');
+        const pengeluaranBody = document.getElementById('pengeluaran-body');
+        const dateFilterElement = document.getElementById('date-filter');
+        const totalPemasukanElement = document.getElementById('total-pemasukan');
+        const totalPengeluaranElement = document.getElementById('total-pengeluaran');
+        const grandTotalElement = document.getElementById('grand-total');
+        const alertLocalStorage = document.getElementById('alert-local-storage');
+        const deskripsiCatatanEl = document.getElementById('deskripsi-catatan');
+        const cashierIdFilterElement = document.getElementById('cashier-id-filter');
+
+        let pemasukanData = [];
+        let pengeluaranData = [];
+
+        function formatRupiah(number) {
+            if (number === undefined || number === null || isNaN(number)) return 'Rp 0';
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits:0 }).format(number);
+        }
+
+        function formatTimeOnly(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+        }
+
+        function formatFullDate(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' });
+        }
+
+        function getTodayDateString() {
+            return new Date().toISOString().substring(0,10);
+        }
+
+        function resetFilter() {
+            dateFilterElement.value = '';
+            cashierIdFilterElement.value = '';
+            applyFilter();
+        }
+
+        function getSelectedDate() { return dateFilterElement.value; }
+        function getSelectedCashierId() { return cashierIdFilterElement.value.trim().toLowerCase(); }
+
+        function processData(snapshot, filterDate, filterCashierId, type) {
+            const items = [];
+            snapshot.forEach(child=>{
+                const data = child.val();
+                const item = {};
+                if(type==='Transaksi'){
+                    item.waktu = data.timestamp;
+                    item.id_kasir = data.id_kasir||'NO ID';
+                    item.deskripsi = data.catatan_transaksi && data.catatan_transaksi.trim()!==''?data.catatan_transaksi:`Trx #${child.key}`;
+                    item.jumlah = data.total_bayar||0;
+                } else {
+                    item.waktu = data.timestamp;
+                    item.id_kasir = data.id_kasir||'N/A';
+                    item.deskripsi = data.deskripsi;
+                    item.jumlah = data.jumlah||0;
+                }
+                const itemDate = item.waktu?new Date(item.waktu).toISOString().substring(0,10):'';
+                const dateMatches = (filterDate==='' || itemDate===filterDate);
+                const cashierMatches = (filterCashierId===''||(type==='Transaksi'&&item.id_kasir.toLowerCase().includes(filterCashierId)));
+                if(dateMatches && cashierMatches) items.push(item);
+            });
+            return items.reverse();
+        }
+
+        function displayPemasukan(data) {
+            pemasukanBody.innerHTML='';
+            if(data.length===0){
+                pemasukanBody.innerHTML='<tr><td colspan="5" style="text-align:center; color:#6c757d;">Belum ada pemasukan yang tercatat.</td></tr>';
+            } else {
+                let total=0;
+                data.forEach(trx=>{
+                    total+=trx.jumlah;
+                    const row=document.createElement('tr');
+                    row.innerHTML=`<td>${formatTimeOnly(trx.waktu)}</td>
+                                   <td>${formatFullDate(trx.waktu)}</td>
+                                   <td>${trx.id_kasir}</td>
+                                   <td>${trx.deskripsi}</td>
+                                   <td style="text-align:right;">${formatRupiah(trx.jumlah)}</td>`;
+                    pemasukanBody.appendChild(row);
+                });
+            }
+        }
+
+        function displayPengeluaran(data) {
+            pengeluaranBody.innerHTML='';
+            if(data.length===0){
+                pengeluaranBody.innerHTML='<tr><td colspan="5" style="text-align:center; color:#6c757d;">Belum ada pengeluaran yang tercatat.</td></tr>';
+            } else {
+                let total=0;
+                data.forEach(exp=>{
+                    total+=exp.jumlah;
+                    const row=document.createElement('tr');
+                    row.innerHTML=`<td>${formatTimeOnly(exp.waktu)}</td>
+                                   <td>${formatFullDate(exp.waktu)}</td>
+                                   <td>${exp.id_kasir}</td>
+                                   <td>${exp.deskripsi}</td>
+                                   <td style="text-align:right;">${formatRupiah(exp.jumlah)}</td>`;
+                    pengeluaranBody.appendChild(row);
+                });
+            }
+        }
+
+        function updateGrandTotal() {
+            const totalIncome = pemasukanData.reduce((sum, item) => sum + (item.jumlah||0), 0);
+            const totalExpense = pengeluaranData.reduce((sum, item) => sum + (item.jumlah||0), 0);
+            const saldoBersih = totalIncome - totalExpense;
+            
+            totalPemasukanElement.textContent = `Total Pemasukan: ${formatRupiah(totalIncome)}`;
+            totalPengeluaranElement.textContent = `Total Pengeluaran: ${formatRupiah(totalExpense)}`;
+            grandTotalElement.textContent = `Saldo Bersih: ${formatRupiah(saldoBersih)}`;
+            grandTotalElement.style.color = saldoBersih >= 0 ? 'var(--secondary-color)' : 'var(--danger-color)';
+        }
+
+        function applyFilter() {
+            // Data sudah tersimpan di pemasukanData & pengeluaranData, tinggal filter ulang
+            transaksiRef.once('value', snapshot => {
+                pemasukanData = processData(snapshot, getSelectedDate(), getSelectedCashierId(), 'Transaksi');
+                displayPemasukan(pemasukanData);
+                updateGrandTotal();
+            });
+            pengeluaranRef.once('value', snapshot => {
+                pengeluaranData = processData(snapshot, getSelectedDate(), getSelectedCashierId(), 'Pengeluaran');
+                displayPengeluaran(pengeluaranData);
+                updateGrandTotal();
+            });
+        }
+
+        function checkLocalStorageForTransaction() {
+            const transactionDataJson = localStorage.getItem('transaksi_berhasil');
+            const deskripsiEkspor = localStorage.getItem('deskripsi_ekspor_catatan');
+            if(transactionDataJson){
+                alertLocalStorage.style.display='block';
+                deskripsiCatatanEl.textContent = deskripsiEkspor||"Tidak ada catatan spesifik.";
+                localStorage.removeItem('transaksi_berhasil');
+                localStorage.removeItem('deskripsi_ekspor_catatan');
+            }
+        }
+
+        function setupRealtimeListeners() {
+            transaksiRef.on('value', snapshot => {
+                pemasukanData = processData(snapshot, getSelectedDate(), getSelectedCashierId(), 'Transaksi');
+                displayPemasukan(pemasukanData);
+                updateGrandTotal();
+            });
+
+            pengeluaranRef.on('value', snapshot => {
+                pengeluaranData = processData(snapshot, getSelectedDate(), getSelectedCashierId(), 'Pengeluaran');
+                displayPengeluaran(pengeluaranData);
+                updateGrandTotal();
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded',()=>{
+            dateFilterElement.value = getTodayDateString();
+            setupRealtimeListeners();
+            checkLocalStorageForTransaction();
+        });
+    </script>
+</body>
+</html>

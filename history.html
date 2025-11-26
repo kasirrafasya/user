@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riwayat & Ringkasan Transaksi</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
+
+<script>
+document.addEventListener("contextmenu", e => e.preventDefault());
+document.addEventListener("selectstart", e => e.preventDefault());
+document.addEventListener("keydown", e => {
+  if (
+    e.key === "F12" ||
+    (e.ctrlKey && ["u","U","c","C","x","X","s","S","a","A"].includes(e.key)) ||
+    (e.ctrlKey && e.shiftKey && ["I","i","J","j"].includes(e.key))
+  ) e.preventDefault();
+});
+</script>
+    <style>
+        /* --- Variabel Dasar --- */
+        :root {
+            --primary-color: #007BFF;
+            --primar-color: #09ff01;  
+            --secondary-color: #28a745; 
+            --danger-color: #dc3545; 
+            --warning-color: #ffc107;
+            --background-light: #f4f7f6;
+            --text-dark: #343a40;
+            --border-radius: 8px;
+        }
+        .filter-controls {
+    display: none !important;
+}
+
+
+        /* --- Global & Container --- */
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-light);
+            color: var(--text-dark);
+            padding: 10px; /* Padding lebih kecil untuk HP */
+            line-height: 1.6;
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 10px auto; /* Margin lebih kecil untuk HP */
+        }
+        .panel { 
+            background-color: white; 
+            padding: 20px; /* Padding lebih kecil untuk HP */
+            border-radius: 12px; 
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08); 
+            margin-bottom: 20px; 
+        }
+        h2 { 
+            font-size: 1.6em; /* Ukuran font disesuaikan */
+            font-weight: 700; 
+            color: var(--primary-color); 
+            margin-bottom: 15px; 
+            padding-bottom: 8px; 
+            border-bottom: 3px solid var(--primary-color); 
+        }
+        h2 { 
+            font-size: 1.6em; /* Ukuran font disesuaikan */
+            font-weight: 700; 
+            color: var(--primar-color); 
+            margin-bottom: 15px; 
+            padding-bottom: 8px; 
+            border-bottom: 3px solid var(--primar-color); 
+        }
+
+        /* --- Kontrol Atas (Ringkasan & Tombol Aksi) --- */
+        .top-controls { 
+            display: flex; 
+            flex-direction: column; /* Default stack untuk HP */
+            gap: 15px; 
+            margin-bottom: 20px; 
+        }
+        .summary-box { 
+            background-color: var(--secondary-color); 
+            color: white; 
+            padding: 15px; 
+            border-radius: var(--border-radius); 
+            text-align: center; 
+            flex-grow: 1; 
+            min-width: unset; 
+        }
+        .summary-box p { 
+            margin: 0; 
+            font-size: 0.85em; 
+            font-weight: 400; 
+        }
+        .summary-box h3 { 
+            margin: 5px 0 0 0; 
+            font-size: 1.8em; /* Ukuran font disesuaikan */
+            font-weight: 700; 
+        }
+        .action-buttons { 
+            display: flex; 
+            gap: 10px;
+            flex-wrap: wrap; /* Agar tombol turun jika layar terlalu kecil */
+            justify-content: stretch;
+        }
+        .action-buttons .btn {
+            flex-grow: 1; /* Tombol memenuhi lebar di HP */
+            min-width: 120px;
+            text-align: center;
+        }
+
+        /* --- Kontrol Filter --- */
+        .filter-controls { 
+            display: flex; 
+            gap: 10px; 
+            align-items: center; 
+            margin-bottom: 15px; 
+            flex-wrap: wrap; /* Penting untuk responsif */
+        }
+        .filter-controls label {
+            white-space: nowrap;
+        }
+        .filter-controls input[type="date"], 
+        .filter-controls .btn {
+            flex-grow: 1;
+            min-width: 120px; /* Agar elemen input/tombol tidak terlalu kecil */
+        }
+        
+        /* --- Tombol & Input --- */
+        .btn { 
+            padding: 10px 15px; /* Padding disesuaikan */
+            text-decoration: none; 
+            border-radius: var(--border-radius); 
+            font-weight: 600; 
+            cursor: pointer; 
+            border: none; 
+            transition: background-color 0.2s; 
+            font-size: 0.9em; /* Ukuran font disesuaikan */
+        }
+        .btn-primary { background-color: var(--primary-color); color: white; }
+        .btn-primary:hover { background-color: #0056b3; }
+        .btn-primar { background-color: var(--primar-color); color: white; }
+        .btn-primar:hover { background-color: #66ff00; }
+        .btn-success { background-color: var(--secondary-color); color: white; }
+        .btn-success:hover { background-color: #1e7e34; }
+        .btn-warning { background-color: var(--warning-color); color: var(--text-dark); }
+        .btn-warning:hover { background-color: #ffaa00; }
+        input[type="date"] { 
+            padding: 10px; 
+            border: 1px solid #ced4da; 
+            border-radius: var(--border-radius); 
+            font-family: 'Poppins', sans-serif; 
+            font-size: 0.9em; 
+        }
+        .btn-back { 
+            display: inline-block; 
+            padding: 8px 15px; 
+            background-color: var(--warning-color); 
+            color: var(--text-dark); 
+            text-decoration: none; 
+            border-radius: var(--border-radius); 
+            font-weight: 600; 
+            transition: background-color 0.2s; 
+            margin-bottom: 15px; 
+            font-size: 0.9em; 
+        }
+        .btn-back:hover { background-color: #ffaa00; }
+
+        /* --- Tabel Riwayat (PENTING untuk Responsif) --- */
+        .table-responsive {
+            overflow-x: auto; /* Memungkinkan tabel untuk digulir secara horizontal */
+        }
+        .history-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 20px; 
+            min-width: 800px; /* Ditingkatkan agar kolom Catatan muat */
+        }
+        .history-table th, .history-table td { 
+            padding: 12px; /* Padding disesuaikan */
+            text-align: left; 
+            border-bottom: 1px solid #e9ecef; 
+            vertical-align: top;
+            font-size: 0.9em; /* Ukuran font disesuaikan */
+        }
+        .history-table th { 
+            background-color: #f8f9fa; 
+            font-weight: 700; 
+            color: var(--text-dark); 
+        }
+        .history-table tr:hover { background-color: #f0f0f0; }
+
+        /* Detail Transaksi */
+        .transaction-detail { 
+            border-top: 1px solid #eee; /* Garis lebih tipis */
+            padding-top: 8px; 
+            margin-top: 8px; 
+            font-size: 0.85em; 
+        }
+        .transaction-summary-row { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 3px 0; 
+        }
+        .detail-item-list { 
+            list-style: none; 
+            padding: 5px; /* Padding lebih kecil */
+            margin: 5px 0 8px 0; 
+            border: 1px dashed #e9ecef; /* Garis lebih halus */
+            background: #fcfcfc; 
+        }
+        .detail-item-list li { padding: 1px 0; }
+        .total-amount { font-weight: 700; color: var(--danger-color); font-size: 1.1em; }
+        .received-amount { color: var(--text-dark); }
+        .change-amount { font-weight: 700; color: var(--secondary-color); font-size: 1.1em; }
+        
+        /* Catatan */
+        .transaction-note {
+            background-color: #fff3cd; /* Warna kuning muda agar menonjol */
+            color: #856404;
+            padding: 8px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            white-space: pre-wrap;
+        }
+
+        /* --- Media Query untuk Desktop --- */
+        @media (min-width: 768px) {
+            body { padding: 20px; }
+            .container { margin: 20px auto; }
+            .panel { padding: 30px; }
+            h2 { font-size: 1.8em; margin-bottom: 20px; padding-bottom: 10px; }
+            
+            /* Tata Letak Desktop */
+            .top-controls { 
+                flex-direction: row; 
+                justify-content: space-between; 
+                align-items: center; 
+            }
+            .summary-box { 
+                min-width: 300px; 
+                flex-grow: 0; 
+            }
+            .summary-box h3 { font-size: 2em; }
+            .action-buttons { 
+                justify-content: flex-end; 
+                flex-wrap: nowrap;
+            }
+            .action-buttons .btn {
+                flex-grow: 0;
+            }
+            .filter-controls {
+                flex-wrap: nowrap;
+                justify-content: flex-start;
+            }
+            .history-table th, .history-table td { 
+                padding: 15px; 
+                font-size: 1em; 
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <a href="kasir.html" class="btn-back">Kembali ke Kasir</a>
+        
+        <div class="panel">
+            
+            <div class="top-controls">
+                <div class="summary-box">
+                    <p>Total Pemasukan Hari Ini</p>
+                    <h3 id="daily-income">Rp 0</h3>
+                </div>
+                <div class="action-buttons">
+                    <a href="pengeluaran.html" class="btn btn-primary">Input Pengeluaran</a>
+                    <a href="ekspor.html" class="btn btn-primar">Lihat data lengkap</a>
+                    
+                    
+                    </div>
+            </div>
+
+            <h2>⏳ Riwayat Transaksi Penjualan</h2>
+            
+            <div class="filter-controls">
+                <label for="date-filter">Pilih Tanggal Riwayat:</label>
+                <input type="date" id="date-filter">
+                <button class="btn btn-primary" onclick="loadHistory()">Terapkan Filter</button>
+                <button class="btn btn-warning" onclick="resetFilter()">Reset Filter</button>
+            </div>
+            
+            <form id="export-form" action="ekspor.html" method="POST">
+                <div class="table-responsive">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 5%;">#</th> 
+                                <th style="width: 25%;">Waktu Transaksi</th>
+                                <th style="width: 55%;">Detail Transaksi</th>
+                                <th style="width: 15%;">Catatan</th> </tr>
+                        </thead>
+                        <tbody id="history-body">
+                            <tr><td colspan="4">Memuat data transaksi...</td></tr> </tbody>
+                    </table>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
+<script>
+    // --- KONFIGURASI FIREBASE ---
+    const firebaseConfig = {
+    apiKey: "AIzaSyBN7iZX6CNHMEENgsFoS8VHhguRreE-xRs",
+    authDomain: "kasirku-1d33c.firebaseapp.com",
+    databaseURL: "https://kasirku-1d33c-default-rtdb.firebaseio.com/",
+    projectId: "kasirku-1d33c",
+    storageBucket: "kasirku-1d33c.appspot.com",
+    messagingSenderId: "440756410882",
+    appId: "1:440756410882:web:674a56658a0f5241d0651b",
+    measurementId: "G-D7C4321WB4"
+};
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    const transaksiRef = database.ref('Transaksi');
+
+    // --- DOM ELEMENTS ---
+    const historyBody = document.getElementById('history-body');
+    const dailyIncomeElement = document.getElementById('daily-income');
+    const dateFilterElement = document.getElementById('date-filter');
+    const exportForm = document.getElementById('export-form');
+
+    let transactionsToExport = [];
+
+    // --- UTIL ---
+    function formatRupiah(number) {
+        if (number === undefined || number === null || isNaN(number)) return 'Rp 0';
+        const value = parseFloat(number);
+        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
+    }
+
+    function formatTimestamp(isoString) {
+        if (!isoString) return 'N/A';
+        const date = new Date(isoString);
+        const optDate = { day: '2-digit', month: 'short', year: 'numeric' };
+        const optTime = { hour: '2-digit', minute: '2-digit' };
+        return date.toLocaleDateString('id-ID', optDate) + " " + date.toLocaleTimeString('id-ID', optTime);
+    }
+
+    function getTodayDateString() {
+        const today = new Date();
+        return today.toISOString().substring(0, 10);
+    }
+
+    function resetFilter() {
+        dateFilterElement.value = '';
+        loadHistory(); 
+    }
+
+    // --- FUNGSI TAMPILAN TABEL ---
+    function displayHistory(transactions) {
+        historyBody.innerHTML = '';
+
+        if (transactions.length === 0) {
+            historyBody.innerHTML = `
+                <tr><td colspan="4" style="color:#6c757d">Belum ada transaksi pada tanggal ini.</td></tr>
+            `;
+            return;
+        }
+
+        document.querySelectorAll('input[name="exported_data[]"]').forEach(i => i.remove());
+
+        transactions.forEach((transaksi, index) => {
+            const row = document.createElement('tr');
+            const waktuFormatted = formatTimestamp(transaksi.timestamp);
+
+            const catatan = transaksi.catatan_transaksi && transaksi.catatan_transaksi.trim() !== ''
+                ? transaksi.catatan_transaksi
+                : 'Undefined';
+
+            let itemListHtml = '<ul class="detail-item-list">';
+            const items = transaksi.items || [];
+
+            if (Array.isArray(items) && items.length > 0) {
+                items.forEach(item => {
+                    const hargaPerUnit = item.harga_final && item.qty
+                        ? item.harga_final / item.qty
+                        : item.subtotal / item.qty;
+                    itemListHtml += `<li>${item.nama} (${item.qty}x @${formatRupiah(hargaPerUnit)})</li>`;
+                });
+            } else {
+                itemListHtml += '<li>Detail item tidak tersedia.</li>';
+            }
+            itemListHtml += '</ul>';
+
+            const totalBayar = transaksi.total_bayar || 0;
+            const uangDiterima = transaksi.cash_received || transaksi.uang_diterima || 0;
+            const kembalian = transaksi.change_amount || transaksi.kembalian || (uangDiterima - totalBayar);
+
+            const detailHtml = `
+                <div class="transaction-detail">
+                    ${itemListHtml}
+                    <div class="transaction-summary-row">
+                        <span>TOTAL BAYAR:</span>
+                        <span class="total-amount">${formatRupiah(totalBayar)}</span>
+                    </div>
+                    <div class="transaction-summary-row">
+                        <span>Uang Diterima:</span>
+                        <span class="received-amount">${formatRupiah(uangDiterima)}</span>
+                    </div>
+                    <div class="transaction-summary-row">
+                        <span>KEMBALIAN:</span>
+                        <span class="change-amount">${formatRupiah(kembalian)}</span>
+                    </div>
+                </div>
+            `;
+
+            row.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${waktuFormatted}</td>
+                <td>${detailHtml}</td>
+                <td><div class="transaction-note">${catatan}</div></td>
+            `;
+
+            historyBody.appendChild(row);
+        });
+    }
+
+    // ⚡ REALTIME LISTENER – data muncul otomatis tanpa refresh
+    transaksiRef.on('value', snapshot => {
+        historyBody.innerHTML = '<tr><td colspan="4">Memuat...</td></tr>';
+        dailyIncomeElement.textContent = 'Menghitung...';
+
+        const selectedDate = dateFilterElement.value;
+        const todayDate = getTodayDateString();
+
+        let allTransactions = [];
+        let totalIncomeToday = 0;
+
+        snapshot.forEach(child => {
+            allTransactions.push({ key: child.key, ...child.val() });
+        });
+
+        allTransactions.reverse();
+
+        let filtered = [];
+
+        allTransactions.forEach(t => {
+            let tgl = '';
+            if (t.timestamp && typeof t.timestamp !== 'object') {
+                tgl = new Date(t.timestamp).toISOString().substring(0, 10);
+            }
+
+            if (tgl === todayDate) {
+                totalIncomeToday += (t.total_bayar || 0);
+            }
+
+            if (selectedDate === '' || tgl === selectedDate) {
+                filtered.push(t);
+            }
+        });
+
+        transactionsToExport = filtered;
+
+        dailyIncomeElement.textContent = formatRupiah(totalIncomeToday);
+        displayHistory(filtered);
+    }, err => {
+        historyBody.innerHTML = `<tr><td colspan="4" style="color:red;">Gagal memuat data.</td></tr>`;
+        dailyIncomeElement.textContent = "Error";
+    });
+
+    // EXPORT
+    exportForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (transactionsToExport.length === 0) {
+            alert("Tidak ada data untuk diekspor.");
+            return;
+        }
+
+        document.querySelectorAll('input[name="exported_data[]"]').forEach(i => i.remove());
+
+        transactionsToExport.forEach(tr => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'exported_data[]';
+            input.value = JSON.stringify(tr);
+            exportForm.appendChild(input);
+        });
+
+        this.submit();
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Selamat Datang di Kasirku</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
+
+<script>
+document.addEventListener("contextmenu", e => e.preventDefault());
+document.addEventListener("selectstart", e => e.preventDefault());
+document.addEventListener("keydown", e => {
+  if (
+    e.key === "F12" ||
+    (e.ctrlKey && ["u","U","c","C","x","X","s","S","a","A"].includes(e.key)) ||
+    (e.ctrlKey && e.shiftKey && ["I","i","J","j"].includes(e.key))
+  ) e.preventDefault();
+});
+</script>
+<style>
+    body {
+        margin: 0;
+        font-family: 'Poppins', sans-serif;
+        background: linear-gradient(135deg, #1e3c72, #2a5298);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        overflow: hidden;
+        color: #fff;
+    }
+
+    .container {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 50px 40px;
+        border-radius: 25px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(15px);
+        max-width: 450px;
+        width: 90%;
+        text-align: center;
+        animation: fadeIn 1.5s ease-out forwards;
+        opacity: 0;
+    }
+
+    h1 {
+        font-size: 3rem;
+        margin-bottom: 20px;
+        animation: slideDown 1s ease-out forwards;
+        opacity: 0;
+    }
+
+    p {
+        font-size: 1.2rem;
+        margin-bottom: 35px;
+        animation: slideUp 1s ease-out 0.5s forwards;
+        opacity: 0;
+    }
+
+    .btn {
+        display: inline-block;
+        padding: 14px 35px;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1e3c72;
+        background-color: #fff;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        animation: fadeInBtn 1s ease-out 1s forwards;
+        opacity: 0;
+    }
+
+    .btn:hover {
+        transform: scale(1.1);
+        background-color: #e0e0e0;
+    }
+
+    @keyframes fadeIn {
+        to { opacity: 1; }
+    }
+
+    @keyframes slideDown {
+        0% { opacity: 0; transform: translateY(-50px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideUp {
+        0% { opacity: 0; transform: translateY(50px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeInBtn {
+        to { opacity: 1; }
+    }
+
+    /* Animasi background particle sederhana */
+    .bg-particle {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        top: 0;
+        left: 0;
+        z-index: -1;
+    }
+
+    .particle {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: rgba(255,255,255,0.3);
+        border-radius: 50%;
+        animation: float 6s linear infinite;
+    }
+
+    @keyframes float {
+        0% { transform: translateY(100vh) translateX(0); }
+        100% { transform: translateY(-10vh) translateX(100px); }
+    }
+</style>
+</head>
+<body>
+
+<div class="bg-particle" id="bgParticle"></div>
+
+<div class="container">
+    <h1>Selamat Datang di Kasirku</h1>
+    <p>Kelola transaksi Anda dengan cepat, mudah, dan aman.</p>
+    <a href="kasir.html" class="btn">Mulai</a>
+</div>
+
+<script>
+    // Membuat animasi particle background
+    const bg = document.getElementById('bgParticle');
+    for(let i = 0; i < 30; i++){
+        const particle = document.createElement('div');
+        particle.classList.add('particle');
+        particle.style.left = Math.random() * 100 + 'vw';
+        particle.style.animationDuration = 4 + Math.random() * 6 + 's';
+        particle.style.width = particle.style.height = 3 + Math.random() * 8 + 'px';
+        bg.appendChild(particle);
+    }
+</script>
+
+</body>
+</html>
